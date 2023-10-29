@@ -1,0 +1,54 @@
+Public Sub ImportEmployeeFromW2W()
+
+    Dim Reader As New XMLHTTP60
+    Dim Coll  As New Collection
+    Dim JSON As New clsJSONParser
+    Dim W2WSite As String
+    Dim JSONTitle As String
+    Dim JSONTitleLen As Long
+    Dim Employee As Variant
+    Dim rs As Recordset
+    Dim S As String
+    
+    JSONTitle = "{""EmployeeList"":"   'Add the double quotes and it will still produce the correct string length
+    JSONTitleLen = Len(JSONTitle)
+    
+    W2WSite = W2WAPISite
+    
+    Reader.Open "GET", W2WSite, False
+    Reader.send
+    
+    Do Until Reader.ReadyState = 4
+        DoEvents
+    Loop
+    
+    If Reader.Status = 200 Then
+        Set rs = CurrentDb.OpenRecordset("EmployeeT")
+        Set Coll = JSON.parse(Right(Reader.responseText, Len(Reader.responseText) - JSONTitleLen))  'Need to make sure the header is not there and add a bracket [ to the front in order for the parcer to work correctly.
+
+        For Each Employee In Coll
+            rs.AddNew
+            rs!W2WEmployeeID = Employee.Item("W2W_EMPLOYEE_ID")
+            rs!FirstName = Employee.Item("FIRST_NAME")
+            rs!LastName = Employee.Item("LAST_NAME")
+            rs!PhoneNumber = Employee.Item("PHONE")
+            rs!MobilePhone = Employee.Item("MOBILE_PHONE")
+            rs!Email = Employee.Item("EMAILS")
+            rs!MaxHrsPerDay = CDbl(Employee.Item("MAX_HRS_DAY"))
+            rs!MaxShiftsPerDay = CDbl(Employee.Item("MAX_SHIFTS_DAY"))
+            rs!MaxHrsPerWeek = CDbl(Employee.Item("MAX_HRS_WEEK"))
+            rs!MaxDaysPerWeek = CDbl(Employee.Item("MAX_DAYS_WEEK"))
+            rs!HireDate = CDate(Employee.Item("HIRE_DATE"))
+            rs.Update
+        Next
+    Else
+        MsgBox "Unable to import data"
+    End If
+    
+    rs.Close
+    Set rs = Nothing
+    Set Coll = Nothing
+    
+    Status "Done"
+
+End Sub
